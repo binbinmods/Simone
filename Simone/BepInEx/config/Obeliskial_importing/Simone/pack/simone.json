@@ -1,0 +1,15 @@
+{
+    "Card0": "ambusherpreciseshot",
+    "Card1": "aimedshot",
+    "Card2": "sneakpeek",
+    "Card3": "blur",
+    "Card4": "rapidfire",
+    "Card5": "",
+    "CardSpecial0": "",
+    "CardSpecial1": "",
+    "PackClass": "scout",
+    "PackID": "simone",
+    "PackName": "Simone",
+    "PerkList": [],
+    "RequiredClass": "ambusher"
+}

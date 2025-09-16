@@ -1,0 +1,33 @@
+[config]
+schemaVersion = "0.1.0"
+
+[package]
+namespace = "Binbin"
+name = "Simone"
+versionNumber = "0.1.0"
+description = "Hero Mod for Simone, the Ambusher. ..."
+websiteUrl = "https://github.com/binbinmods/Simone"
+containsNsfwContent = false
+
+[package.dependencies]
+meds-Obeliskial_Essentials = "1.5.1"
+meds-Obeliskial_Content = "1.6.0"
+
+
+[build]
+icon = "./icon.png"
+readme = "./README.md"
+outdir = "./build"
+
+[[build.copy]]
+source = "./Simone"
+target = ""
+
+
+[publish]
+repository = "https://thunderstore.io"
+communities = [ "across-the-obelisk", ]
+[publish.categories]
+across-the-obelisk = [ "mods", ]
+
+
