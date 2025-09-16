@@ -37,6 +37,8 @@ namespace Simone
 
         public static bool isCalculateDamageActive = false;
         public static int infiniteProctection = 0;
+        public static bool playedAttackingCard = false;
+        public static int stealthGained = 0;
 
         public static string debugBase = "Binbin - Testing " + heroName + " ";
 
@@ -73,21 +75,22 @@ namespace Simone
             if (_trait == trait0)
             {
                 // trait0:
+                // At the end of your turn, apply 1 Mark for every Stealth on you to the lowest HP monster.
                 LogDebug($"Handling Trait {traitId}: {traitName}");
-                _character.SetAuraTrait(_character, "evade", 1);
+                Character lowestHPMonster = GetLowestHealthCharacter(teamNpc);
+                if (IsLivingNPC(lowestHPMonster))
+                {
+                    int nToApply = _character.GetAuraCharges("stealth");
+                    lowestHPMonster.SetAuraTrait(_character, "mark", nToApply);
+                }
             }
 
 
             else if (_trait == trait2a)
             {
                 // trait2a
-                if (CanIncrementTraitActivations(traitId) && _castedCard.HasCardType(Enums.CardType.Defense))// && MatchManager.Instance.energyJustWastedByHero > 0)
-                {
-                    LogDebug($"Handling Trait {traitId}: {traitName}");
-                    // _character?.ModifyEnergy(1);
-                    // DrawCards(1);
-                    IncrementTraitActivations(traitId);
-                }
+                // Fast on you does not increase speed, but increases Stealth Damage by 3% per charge
+                // Handled in GACM
             }
 
 
@@ -96,19 +99,28 @@ namespace Simone
             {
                 // trait2b:
                 LogDebug($"Handling Trait {traitId}: {traitName}");
+                // Increase Single Target damage by 50%. 
+                // Decrease Damage from cards that target All Monsters, Global, or have Jump by 25%. 
 
             }
 
             else if (_trait == trait4a)
             {
                 // trait 4a;
-
+                // At the end of your turn, if you didn't play a Small Weapon or Attack this turn, 
+                // gain 1 Stealth for every Stealth you gained during the turn.
                 LogDebug($"Handling Trait {traitId}: {traitName}");
+                if (!playedAttackingCard)
+                {
+                    _character.SetAuraTrait(_character, "stealth", stealthGained);
+                }
             }
 
             else if (_trait == trait4b)
             {
                 // trait 4b:
+                // Mark on enemies increases All Damage received by 3 per charge.
+                // Handled in GACM
                 LogDebug($"Handling Trait {traitId}: {traitName}");
             }
 
@@ -148,59 +160,40 @@ namespace Simone
             switch (_acId)
             {
                 // trait2a:
+                // Fast on you does not increase speed, 
+                // but increases Stealth Damage by 3% per charge
 
                 // trait2b:
 
                 // trait 4a;
 
                 // trait 4b:
+                // Mark on enemies increases All Damage received by 3 per charge.
 
-                case "evasion":
+                case "fast":
                     traitOfInterest = trait2a;
                     if (IfCharacterHas(characterOfInterest, CharacterHas.Trait, traitOfInterest, AppliesTo.ThisHero))
                     {
+                        __result.CharacterStatModified = Enums.CharacterStat.None;
+                        __result.CharacterStatAbsoluteValuePerStack = 0;
                     }
                     break;
                 case "stealth":
                     traitOfInterest = trait2b;
-                    if (IfCharacterHas(characterOfInterest, CharacterHas.Trait, traitOfInterest, AppliesTo.Heroes))
+                    if (IfCharacterHas(characterOfInterest, CharacterHas.Trait, traitOfInterest, AppliesTo.ThisHero))
                     {
+                        __result.AuraDamageIncreasedPercentPerStack += 2 * characterOfInterest.GetAuraCharges("fast");
+                    }
+                    break;
+                case "mark":
+                    traitOfInterest = trait4b;
+                    if (IfCharacterHas(characterOfInterest, CharacterHas.Trait, traitOfInterest, AppliesTo.ThisHero))
+                    {
+                        __result.AuraDamageIncreasedPerStack = 3;
                     }
                     break;
             }
         }
-
-        // [HarmonyPrefix]
-        // [HarmonyPatch(typeof(Character), "HealAuraCurse")]
-        // public static void HealAuraCursePrefix(ref Character __instance, AuraCurseData AC, ref int __state)
-        // {
-        //     LogInfo($"HealAuraCursePrefix {subclassName}");
-        //     string traitOfInterest = trait4b;
-        //     if (IsLivingHero(__instance) && __instance.HaveTrait(traitOfInterest) && AC == GetAuraCurseData("stealth"))
-        //     {
-        //         __state = Mathf.FloorToInt(__instance.GetAuraCharges("stealth") * 0.25f);
-        //         // __instance.SetAuraTrait(null, "stealth", 1);
-
-        //     }
-
-        // }
-
-        // [HarmonyPostfix]
-        // [HarmonyPatch(typeof(Character), "HealAuraCurse")]
-        // public static void HealAuraCursePostfix(ref Character __instance, AuraCurseData AC, int __state)
-        // {
-        //     LogInfo($"HealAuraCursePrefix {subclassName}");
-        //     string traitOfInterest = trait4b;
-        //     if (IsLivingHero(__instance) && __instance.HaveTrait(traitOfInterest) && AC == GetAuraCurseData("stealth") && __state > 0)
-        //     {
-        //         // __state = __instance.GetAuraCharges("stealth");
-        //         __instance.SetAuraTrait(null, "stealth", __state);
-        //     }
-
-        // }
-
-
-
 
         [HarmonyPrefix]
         [HarmonyPatch(typeof(CharacterItem), nameof(CharacterItem.CalculateDamagePrePostForThisCharacter))]
@@ -229,54 +222,81 @@ namespace Simone
             isDamagePreviewActive = false;
         }
 
-        // [HarmonyPostfix]
-        // [HarmonyPatch(typeof(Character), nameof(Character.SetEvent))]
-        // public static void SetEventPostfix(
-        //     Enums.EventActivation theEvent,
-        //     Character target = null,
-        //     int auxInt = 0,
-        //     string auxString = "")
-        // {
-        //     if (theEvent == Enums.EventActivation.BeginTurnCardsDealt && AtOManager.Instance.TeamHaveTrait(trait2b))
-        //     {
-        //         string cardToPlay = "tacticianexpectedprophecy";
-        //         PlayCardForFree(cardToPlay);
-        //     }
+        [HarmonyPostfix]
+        [HarmonyPatch(typeof(Character), nameof(Character.SetEvent))]
+        public static void SetEventPostfix(
+            Character __instance,
+            Enums.EventActivation theEvent,
+            Character target = null,
+            int auxInt = 0,
+            string auxString = "")
+        {
+            if (theEvent == Enums.EventActivation.BeginTurnAboutToDealCards)
+            {
 
-        // }
+                playedAttackingCard = false;
+                stealthGained = 0;
+            }
+            if (theEvent == Enums.EventActivation.CastCard &&
+                (__instance.CardCasted.HasCardType(Enums.CardType.Attack) ||
+                __instance.CardCasted.HasCardType(Enums.CardType.Small_Weapon)))
+            {
+
+                playedAttackingCard = true;
+            }
+
+            if (theEvent == Enums.EventActivation.AuraCurseSet && auxString == "stealth" && (target?.HaveTrait(trait4a) ?? false))
+            {
+                stealthGained += auxInt;
+            }
+
+        }
+
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(Character), "DamageWithCharacterBonus")]
+        public static void DamageWithCharacterBonusPrefix(
+            ref int value,
+            Enums.DamageType DT,
+            Enums.CardClass CC,
+            int energyCost,
+            // ref int __result,
+            Character __instance,
+            CardData ___cardCasted)
+        {
+            string traitOfInterest = trait2b;
+            // Increase Single Target damage by 50%. 
+            // Decrease Damage from cards that target All Monsters, Global, or have Jump by 25%.
+            if (IsLivingHero(__instance) && __instance.HaveTrait(traitOfInterest))
+            {
+                if (___cardCasted == null || MatchManager.Instance == null)
+                {
+                    return;
+                }
+                // Single hit and Special cards do 50% bonus damage for every energy spent.
+                bool isSingleHit = ___cardCasted != null && ___cardCasted.TargetType == Enums.CardTargetType.Single;
+                bool isAreaOrJump = ___cardCasted != null &&
+                        (___cardCasted.TargetType == Enums.CardTargetType.Global ||
+                        ___cardCasted.TargetType == Enums.CardTargetType.SingleSided ||
+                        (___cardCasted.EffectRepeat > 1 && ___cardCasted.EffectRepeatTarget == Enums.EffectRepeatTarget.NoRepeat));
+
+                if (isAreaOrJump)
+                {
+                    // int energy = MatchManager.Instance.energyJustWastedByHero;
+                    // __result[1] += 50f * energy;
+                    float multiplier = 0.75f;
+                    value = Mathf.RoundToInt(multiplier * value);
+                }
+                else if (isSingleHit)
+                {
+                    // int energy = MatchManager.Instance.energyJustWastedByHero;
+                    // __result[1] += 50f * energy;
+                    float multiplier = 0.5f;
+                    value += Mathf.RoundToInt(multiplier * value);
+                }
 
 
-
-
-
-        // [HarmonyPostfix]
-        // [HarmonyPatch(typeof(CardData), nameof(CardData.SetDescriptionNew))]
-        // public static void SetDescriptionNewPostfix(ref CardData __instance, bool forceDescription = false, Character character = null, bool includeInSearch = true)
-        // {
-        //     // LogInfo("executing SetDescriptionNewPostfix");
-        //     if (__instance == null)
-        //     {
-        //         LogDebug("Null Card");
-        //         return;
-        //     }
-        //     if (!Globals.Instance.CardsDescriptionNormalized.ContainsKey(__instance.Id))
-        //     {
-        //         LogError($"missing card Id {__instance.Id}");
-        //         return;
-        //     }
-
-
-        //     if (__instance.CardName == "Mind Maze")
-        //     {
-        //         StringBuilder stringBuilder1 = new StringBuilder();
-        //         LogDebug($"Current description for {__instance.Id}: {stringBuilder1}");
-        //         string currentDescription = Globals.Instance.CardsDescriptionNormalized[__instance.Id];
-        //         stringBuilder1.Append(currentDescription);
-        //         // stringBuilder1.Replace($"When you apply", $"When you play a Mind Spell\n or apply");
-        //         stringBuilder1.Replace($"Lasts one turn", $"Lasts two turns");
-        //         BinbinNormalizeDescription(ref __instance, stringBuilder1);
-        //     }
-        // }
+            }
+        }
 
     }
 }

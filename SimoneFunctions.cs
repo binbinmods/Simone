@@ -354,5 +354,52 @@ namespace Simone
                 hero.SetAura(null, GetAuraCurseData("shield"), amountOverhealed, useCharacterMods: false);
             }
         }
+
+        /// <summary>
+        /// Gets the most damaged character from a character array (either heroes or NPCs)
+        /// </summary>
+        /// <param name="array">Array to get the hero from</param>
+        /// <returns>The random character</returns>
+
+        public static Character GetLowestHealthCharacter(Character[] characters)
+        {
+            int num1 = -1;
+            float num2 = 99.9999f;
+            for (int index = 0; index < characters.Length; ++index)
+            {
+                if (characters[index] != null && (UnityEngine.Object)characters[index].HeroData != (UnityEngine.Object)null && characters[index].Alive)
+                {
+                    float hpPercent = characters[index].GetHpPercent();
+                    if ((double)hpPercent <= (double)num2)
+                    {
+                        num2 = hpPercent;
+                        num1 = index;
+                    }
+                }
+            }
+            if (num1 > -1)
+            {
+                List<int> intList = new List<int>();
+                intList.Add(num1);
+                for (int index = 0; index < characters.Length; ++index)
+                {
+                    if (index != num1 && characters[index] != null && characters[index].Alive && (double)characters[index].GetHpPercent() == (double)num2)
+                        intList.Add(index);
+                }
+                if (intList.Count > 0)
+                {
+                    int num3 = 0;
+                    for (; num3 < 10; ++num3)
+                    {
+                        int index = intList.Count <= 1 ? intList[0] : intList[MatchManager.Instance.GetRandomIntRange(0, intList.Count, "trait")];
+                        if (num3 == 9)
+                            index = intList[0];
+                        if (index < characters.Length && characters[index] != null)
+                            return characters[index];
+                    }
+                }
+            }
+            return (Character)null;
+        }
     }
 }
